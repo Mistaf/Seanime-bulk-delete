@@ -1,0 +1,30 @@
+{
+    "id": "seanime-bulk-delete",
+    "name": "Bulk Delete",
+    "version": "0.1.0",
+    "manifestURI": "https://raw.githubusercontent.com/Mistaf/Seanime-bulk-delete/refs/heads/main/seanime-bulk-delete.json",
+    "language": "javascript",
+    "type": "plugin",
+    "description": "Select many anime at once and delete their downloaded files.",
+    "author": "Mistaf",
+    "icon": "",
+    "website": "",
+    "readme": "",
+    "notes": "",
+    "lang": "multi",
+    "payloadURI": "https://raw.githubusercontent.com/Mistaf/Seanime-bulk-delete/refs/heads/main/plugin.js",
+    "plugin": {
+        "version": "1",
+        "permissions": {
+            "scopes": ["anilist", "system"],
+            "allow": {
+                "readPaths": [
+                    "$SEANIME_ANIME_LIBRARY/**/*"
+                ],
+                "writePaths": [
+                    "$SEANIME_ANIME_LIBRARY/**/*"
+                ]
+            }
+        }
+    }
+}
