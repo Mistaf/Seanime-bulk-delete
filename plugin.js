@@ -119,9 +119,16 @@ function createCore() {
                 const listData = entry.listData || entry.ListData || {}
                 const mediaListEntry = media.mediaListEntry || {}
 
+                // Every one of these is a shape Seanime has actually returned.
+                // Trimming the list to the ones with tests broke scoring in
+                // 0.1.1: everything read as unscored. Do not prune it again
+                // without instrumenting a live runtime first.
                 const rawScore = firstNumber([
                     entry.score, listData.score, mediaListEntry.score,
+                    entry.scoreRaw, listData.scoreRaw,
                     callNumber(entry, "getScore"),
+                    callNumber(entry, "getScoreSafe"),
+                    callNumber(mediaListEntry, "getScore"),
                 ])
 
                 out[id] = {

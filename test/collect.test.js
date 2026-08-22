@@ -167,3 +167,47 @@ test("returns an empty map for null or unrecognized input", () => {
     assert.deepStrictEqual(plugin.collectMediaInfo({}), {})
     assert.deepStrictEqual(plugin.collectMediaInfo({ lists: [] }), {})
 })
+
+// Cutting these four candidates as "unevidenced" shipped 0.1.1, where every
+// anime read as unscored. One of them is the shape a live Seanime returns, so
+// each gets a test of its own now.
+test("reads scoreRaw on the entry", () => {
+    const info = plugin.collectMediaInfo({
+        lists: [{ entries: [{ media: { id: 51, title: { romaji: "Raw" } }, scoreRaw: 85 }] }],
+    })
+    assert.strictEqual(info[51].score, 8.5)
+})
+
+test("reads scoreRaw from listData", () => {
+    const info = plugin.collectMediaInfo({
+        lists: [{ entries: [{ media: { id: 52, title: { romaji: "Listed raw" } }, listData: { scoreRaw: 70 } }] }],
+    })
+    assert.strictEqual(info[52].score, 7)
+})
+
+test("reads getScoreSafe when getScore is absent", () => {
+    const info = plugin.collectMediaInfo({
+        lists: [{
+            entries: [{
+                media: { id: 53, title: { romaji: "Safe getter" } },
+                getScoreSafe: function () { return 9 },
+            }],
+        }],
+    })
+    assert.strictEqual(info[53].score, 9)
+})
+
+test("reads getScore on media.mediaListEntry", () => {
+    const info = plugin.collectMediaInfo({
+        lists: [{
+            entries: [{
+                media: {
+                    id: 54,
+                    title: { romaji: "Nested getter" },
+                    mediaListEntry: { getScore: function () { return 6 } },
+                },
+            }],
+        }],
+    })
+    assert.strictEqual(info[54].score, 6)
+})

@@ -1,7 +1,7 @@
 {
     "id": "seanime-bulk-delete",
     "name": "Bulk Delete",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "manifestURI": "https://raw.githubusercontent.com/Mistaf/Seanime-bulk-delete/refs/heads/main/seanime-bulk-delete.json",
     "language": "javascript",
     "type": "plugin",
