@@ -33,11 +33,9 @@ test("deletes every file of every group", () => {
     const fs = fakeFs()
     const res = plugin.deleteGroups(groups, fs)
     assert.deepStrictEqual(fs.removed, ["/a/1.mkv", "/a/2.mkv", "/b/1.mkv"])
-    assert.strictEqual(res.attempted, 3)
     assert.strictEqual(res.deleted, 3)
     assert.strictEqual(res.bytes, 350)
     assert.deepStrictEqual(res.failed, [])
-    assert.deepStrictEqual(res.paths, ["/a/1.mkv", "/a/2.mkv", "/b/1.mkv"])
 })
 
 test("a failing file does not stop the batch", () => {
@@ -62,13 +60,11 @@ test("skips files already marked missing", () => {
     const fs = fakeFs()
     const res = plugin.deleteGroups(withMissing, fs)
     assert.deepStrictEqual(fs.removed, ["/c/here.mkv"])
-    assert.strictEqual(res.attempted, 1)
 })
 
 test("empty selection is a no-op", () => {
     const fs = fakeFs()
     const res = plugin.deleteGroups([], fs)
-    assert.strictEqual(res.attempted, 0)
     assert.strictEqual(res.deleted, 0)
     assert.deepStrictEqual(fs.removed, [])
 })

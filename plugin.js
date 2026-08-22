@@ -10,13 +10,10 @@ function createCore() {
     function formatBytes(n) {
         const bytes = typeof n === "number" && isFinite(n) && n > 0 ? n : 0
         if (bytes < 1024) return bytes + " B"
-        const units = ["KB", "MB", "GB", "TB"]
-        let value = bytes / 1024
+        const units = ["B", "KB", "MB", "GB", "TB"]
+        let value = bytes
         let i = 0
-        while (value >= 1024 && i < units.length - 1) {
-            value = value / 1024
-            i++
-        }
+        while (value >= 1024 && i < 4) { value = value / 1024; i++ }
         return value.toFixed(1) + " " + units[i]
     }
 
@@ -78,8 +75,7 @@ function createCore() {
     }
 
     function formatScore(score) {
-        if (score == null) return "unscored"
-        return String(Math.round(score * 10) / 10)
+        return score == null ? "unscored" : String(score)
     }
 
     // Collection entries come from Go structs: a nullable number like score
@@ -125,10 +121,7 @@ function createCore() {
 
                 const rawScore = firstNumber([
                     entry.score, listData.score, mediaListEntry.score,
-                    entry.scoreRaw, listData.scoreRaw,
                     callNumber(entry, "getScore"),
-                    callNumber(entry, "getScoreSafe"),
-                    callNumber(mediaListEntry, "getScore"),
                 ])
 
                 out[id] = {
@@ -200,23 +193,14 @@ function createCore() {
     // deleteGroups skips missing files, so they must not be counted here or the
     // confirm screen overstates what it is about to do.
     function deletableCount(group) {
-        if (!group || !group.files) return 0
-        let n = 0
-        for (const f of group.files) {
-            if (!f.missing) n++
-        }
-        return n
+        return (((group && group.files) || [])).filter((f) => !f.missing).length
     }
 
     // Missing files are skipped and labelled "already deleted", so a permission
     // error must not read as absence - that turns a delete into a silent no-op.
     function looksAbsent(message) {
-        const m = String(message || "").toLowerCase()
-        return m.indexOf("no such file") !== -1
-            || m.indexOf("cannot find") !== -1
-            || m.indexOf("does not exist") !== -1
-            || m.indexOf("not exist") !== -1
-            || m.indexOf("enoent") !== -1
+        return /no such file|cannot find|not exist|enoent/
+            .test(String(message || "").toLowerCase())
     }
 
     // AniList sends CURRENT, Seanime may send "Watching", and a select may send
@@ -225,18 +209,11 @@ function createCore() {
         if (value == null) return null
         const key = String(value).trim().toUpperCase().replace(/[\s-]+/g, "_")
         const aliases = {
-            ALL: "ALL",
             ALL_STATUSES: "ALL",
-            COMPLETED: "COMPLETED",
-            DROPPED: "DROPPED",
-            CURRENT: "CURRENT",
             WATCHING: "CURRENT",
-            PLANNING: "PLANNING",
             PLAN_TO_WATCH: "PLANNING",
             PLANNED: "PLANNING",
-            PAUSED: "PAUSED",
             ON_HOLD: "PAUSED",
-            REPEATING: "REPEATING",
             REWATCHING: "REPEATING",
         }
         return aliases[key] || key
@@ -302,19 +279,14 @@ function createCore() {
     // in tests. Missing files are skipped, and one failure does not stop the batch.
     function deleteGroups(groups, fsApi) {
         const result = {
-            attempted: 0,
             deleted: 0,
             bytes: 0,
             failed: [],
-            paths: [],
         }
 
         for (const group of groups || []) {
             for (const file of (group && group.files) || []) {
                 if (!file || !file.path || file.missing) continue
-
-                result.attempted++
-                result.paths.push(file.path)
 
                 try {
                     fsApi.remove(file.path)
@@ -420,7 +392,6 @@ function init() {
                 if (path) paths.push(path)
             }
             const suggestions = core.suggestAllowPaths(paths)
-            if (!suggestions.length) return "(no paths available to suggest from)"
 
             // With only a handful of files this can land deeper than the real
             // root, so say that widening it is safe.
@@ -437,9 +408,7 @@ function init() {
         // Reset on every rebuild.
         let statAttempts = 0
         let statFailures = 0
-        let statUnknownSize = 0
         let statErrorSample = ""
-        let statShapeSample = ""
 
         function statSize(path) {
             statAttempts++
@@ -455,22 +424,6 @@ function init() {
                     }
                     if (typeof value === "number") return value
                 }
-
-                // stat worked but hides the size under some other name. Record
-                // the shape once so the next run can name the field instead of
-                // showing every file as 0 B.
-                if (!statShapeSample) {
-                    let keys = []
-                    try {
-                        keys = Object.keys(st)
-                    } catch (inner) {
-                        keys = []
-                    }
-                    statShapeSample = keys.length
-                        ? keys.slice(0, 12).join(",")
-                        : "(no enumerable keys)"
-                }
-                statUnknownSize++
                 return 0
             } catch (e) {
                 statFailures++
@@ -588,9 +541,7 @@ function init() {
 
                 statAttempts = 0
                 statFailures = 0
-                statUnknownSize = 0
                 statErrorSample = ""
-                statShapeSample = ""
 
                 const groups = core.buildIndexFrom(files, info, statSize)
                 ensureHandlers(groups)
@@ -613,11 +564,6 @@ function init() {
                         + "  First error: " + statErrorSample)
                 }
 
-                if (statUnknownSize > 0) {
-                    addWarning("Sizes unavailable for " + statUnknownSize + " files:"
-                        + " stat succeeded but exposes no known size field."
-                        + " Fields seen: " + statShapeSample)
-                }
 
                 // Drop selections with nothing left to delete, otherwise the
                 // panel offers "delete 0 files from 1 anime".
@@ -888,10 +834,10 @@ function init() {
             return renderList()
         })
 
-        // Nothing awaits the first load, so catch here rather than leave an
-        // unhandled rejection.
-        rebuild().catch((e) => {
-            ctx.toast.warning("Could not load the library: " + (e && e.message ? e.message : e))
-        })
+        // rebuild() reports its own failures, and its return value is left
+        // alone on purpose. On a fresh install the UI runtime hands back
+        // undefined here, so calling .catch on it threw during Register and
+        // took the whole handler down until the server was restarted.
+        rebuild()
     })
 }

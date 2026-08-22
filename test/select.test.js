@@ -58,10 +58,9 @@ test("paths shown for a selection match the paths deleteGroups attempts", () => 
 
     const removed = []
     const fakeFs = { remove: (p) => removed.push(p) }
-    const res = plugin.deleteGroups(chosen, fakeFs)
+    plugin.deleteGroups(chosen, fakeFs)
 
     assert.deepStrictEqual(removed, shown)
-    assert.deepStrictEqual(res.paths, shown)
 })
 
 test("deletableCount counts only files a delete would attempt", () => {

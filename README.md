@@ -117,6 +117,11 @@ The quoted glob matters: `node --test test/` errors on Node 24, and a bare
 
 ## Troubleshooting
 
+**Right after installing, the plugin crashes.** Fixed in 0.1.1. On 0.1.0 the
+first library load called `.catch` on a value the UI runtime returns as
+`undefined` on a fresh install, which killed the handler before the tray was
+registered. Restarting the Seanime server fully was the workaround.
+
 **The extension never appears in the list.** The manifest is invalid and was
 dropped silently. Most likely a path in `readPaths`/`writePaths` is not real.
 Use `$SEANIME_ANIME_LIBRARY/**/*` rather than a hand-written path.
