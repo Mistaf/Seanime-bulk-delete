@@ -359,8 +359,11 @@ function init() {
 
         // Inlined as a data URI so it cannot 404. Without an iconUrl the tray
         // button renders empty and the plugin looks like it never loaded.
+        // The stroke color is explicit: loaded as an image, currentColor does
+        // not inherit the page's text color and falls back to black, which is
+        // invisible on Seanime's dark tray bar.
         const iconSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'"
-            + " fill='none' stroke='currentColor' stroke-width='2'"
+            + " fill='none' stroke='#e4e4e7' stroke-width='2'"
             + " stroke-linecap='round' stroke-linejoin='round'>"
             + "<polyline points='3 6 5 6 21 6'/>"
             + "<path d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/>"
@@ -370,7 +373,11 @@ function init() {
 
         const tray = ctx.newTray({
             tooltipText: "Bulk Delete",
-            iconUrl: "data:image/svg+xml;utf8," + encodeURIComponent(iconSvg),
+            // Seanime's SeaImage swaps any external icon URL that does not end
+            // in .png/.jpg/.jpeg/.avif/.webp/.ico for a grey placeholder. The
+            // "#.png" fragment passes that check; browsers ignore a fragment
+            // when decoding a data URI, so the SVG still renders.
+            iconUrl: "data:image/svg+xml;utf8," + encodeURIComponent(iconSvg) + "#.png",
             withContent: true,
             width: "480px",
             minHeight: "300px",
