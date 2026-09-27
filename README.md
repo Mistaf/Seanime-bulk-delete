@@ -20,8 +20,9 @@ If you would rather install by hand, drop `seanime-bulk-delete.json` into the
 
 ## Permissions
 
-The plugin asks for the `anilist` and `system` scopes, and for read and write
-access to your anime library:
+The plugin asks for the `anilist`, `system` and `database` scopes, and for read
+and write access to your anime library. `database` is only used to read the list
+of scanned files; the plugin never writes to it.
 
 ```json
 "readPaths":  ["$SEANIME_ANIME_LIBRARY/**/*"],
@@ -117,10 +118,14 @@ The quoted glob matters: `node --test test/` errors on Node 24, and a bare
 
 ## Troubleshooting
 
-**Right after installing, the plugin crashes.** Fixed in 0.1.1. On 0.1.0 the
-first library load called `.catch` on a value the UI runtime returns as
-`undefined` on a fresh install, which killed the handler before the tray was
-registered. Restarting the Seanime server fully was the workaround.
+**Right after installing or updating, the plugin crashes with `index out of
+range` in an async job.** Fixed in 0.1.4. Up to 0.1.3 the plugin read local
+files by calling `ctx.anime.getAnimeEntry` for every anime on your list. When
+one of those calls fails, Seanime rejects its promise from a background
+goroutine instead of the UI thread, which corrupts the UI runtime. That is most
+likely on a cold start, so restarting the server seemed to fix it. 0.1.4 reads
+all files with one synchronous `$database.localFiles.getAll()` call instead.
+The new `database` scope has to be granted once after updating.
 
 **The extension never appears in the list.** The manifest is invalid and was
 dropped silently. Most likely a path in `readPaths`/`writePaths` is not real.
@@ -133,8 +138,8 @@ visible instantly.
 
 **`TypeError: Object has no member 'x'`.** The UI runtime exposes a smaller API
 than the general plugin docs suggest. Verified available inside `$ui.register`:
-`$anilist`, `$os`, `$storage`, and `ctx.*`. NOT available: `$database` - use
-`ctx.anime.getAnimeEntry(mediaId).localFiles` for local files. `ctx.toast` has
+`$anilist`, `$os`, `$storage`, and `ctx.*`. `$database` is there only when the
+manifest requests the `database` scope. `ctx.toast` has
 `info`, `success` and `warning`, but no `alert`, despite what the docs show.
 
 **Deletions fail with a permissions error.** The path is outside `writePaths`.

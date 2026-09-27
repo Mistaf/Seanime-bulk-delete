@@ -1,7 +1,7 @@
 {
     "id": "seanime-bulk-delete",
     "name": "Bulk Delete",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "manifestURI": "https://raw.githubusercontent.com/Mistaf/Seanime-bulk-delete/refs/heads/main/seanime-bulk-delete.json",
     "language": "javascript",
     "type": "plugin",
@@ -12,7 +12,7 @@
     "plugin": {
         "version": "1",
         "permissions": {
-            "scopes": ["anilist", "system"],
+            "scopes": ["anilist", "system", "database"],
             "allow": {
                 "readPaths": [
                     "$SEANIME_ANIME_LIBRARY/**/*"

@@ -440,13 +440,16 @@ function init() {
                 }
                 return 0
             } catch (e) {
-                statFailures++
                 const message = (e && e.message) ? e.message : String(e)
-                if (!statErrorSample) statErrorSample = message
 
-                // Only call a file gone when the error says so. Unknown errors
-                // keep it present at size 0.
-                return core.looksAbsent(message) ? null : 0
+                // A file that is gone (say, just deleted) is expected, not a
+                // read failure, so it stays out of the warning.
+                if (core.looksAbsent(message)) return null
+
+                // Unknown errors keep the file present at size 0.
+                statFailures++
+                if (!statErrorSample) statErrorSample = message
+                return 0
             }
         }
 
@@ -496,36 +499,17 @@ function init() {
             }
         }
 
-        // $database.localFiles.getAll() would be one call, but $database is not
-        // exposed in the UI runtime. ctx.anime.getAnimeEntry is the way in and
-        // reads through a cache. Batched: sequential is slow over a few hundred
-        // entries, unbounded hammers the server.
-        async function collectLocalFiles(mediaIds) {
+        // One synchronous read of every scanned file. Needs the "database"
+        // scope. Do not go back to ctx.anime.getAnimeEntry per anime: on
+        // failure it rejects its promise from a background goroutine, which
+        // races this VM and panicked the UI on a cold start.
+        function readLocalFiles() {
             const files = []
-            const BATCH = 8
-
-            for (let i = 0; i < mediaIds.length; i += BATCH) {
-                const batch = mediaIds.slice(i, i + BATCH)
-                const entries = await Promise.all(batch.map(async (id) => {
-                    try {
-                        return await ctx.anime.getAnimeEntry(id)
-                    } catch (e) {
-                        // One unreadable entry must not empty the panel.
-                        return null
-                    }
-                }))
-
-                for (const entry of entries) {
-                    if (entry && entry.localFiles) {
-                        for (const lf of entry.localFiles) files.push(lf)
-                    }
-                }
-            }
-
+            for (const lf of $database.localFiles.getAll() || []) files.push(lf)
             return files
         }
 
-        async function rebuild() {
+        function rebuild() {
             busy.set(true)
             try {
                 let info = {}
@@ -550,8 +534,7 @@ function init() {
                         + ((e && e.message) ? e.message : e))
                 }
 
-                const mediaIds = Object.keys(info).map((k) => parseInt(k, 10))
-                const files = await collectLocalFiles(mediaIds)
+                const files = readLocalFiles()
 
                 statAttempts = 0
                 statFailures = 0
@@ -592,8 +575,8 @@ function init() {
             busy.set(false)
         }
 
-        ctx.registerEventHandler("refresh", async () => {
-            await rebuild()
+        ctx.registerEventHandler("refresh", () => {
+            rebuild()
             ctx.toast.info("Library reloaded")
         })
 
@@ -735,7 +718,7 @@ function init() {
             mode.set("list")
         })
 
-        ctx.registerEventHandler("do-delete", async () => {
+        ctx.registerEventHandler("do-delete", () => {
             const groups = selectedGroups()
 
             const res = core.deleteGroups(groups, $os)
@@ -750,7 +733,7 @@ function init() {
             mode.set("result")
 
             selected.set([])
-            await rebuild()
+            rebuild()
         })
 
         function renderConfirm() {
@@ -848,10 +831,7 @@ function init() {
             return renderList()
         })
 
-        // rebuild() reports its own failures, and its return value is left
-        // alone on purpose. On a fresh install the UI runtime hands back
-        // undefined here, so calling .catch on it threw during Register and
-        // took the whole handler down until the server was restarted.
+        // rebuild() reports its own failures.
         rebuild()
     })
 }
